@@ -68,6 +68,7 @@ sub new {
         my $ua = $args{user_agent};
 
         my $h = HTTP::Headers->new(
+            'Content-Type'    => 'application/x-www-form-urlencoded',
             Accept            => "application/json",
             'Accept-Language' => 'en_US'
         );
