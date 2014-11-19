@@ -16,6 +16,9 @@ our $ENDPOINT_SANDBOX = "https://api.sandbox.paypal.com";
 our $ENDPOINT_LIVE    = "https://api.paypal.com";
 
 my $live = 0;
+my $last_error;
+my $json = JSON->new->allow_nonref;
+
 
 sub live {
     my $class = shift;
@@ -90,8 +93,6 @@ sub new {
     }
     return bless( \%args, $class );
 }
-
-my $json = JSON->new->allow_nonref;
 
 sub _json_decode {
     my $text = shift;
@@ -268,8 +269,6 @@ sub get_cc {
     my ($id) = @_;
     return $self->rest( "GET", "/v1/vault/credit-card/$id" );
 }
-
-my $last_error;
 
 sub error {
     my $self = shift;
