@@ -112,7 +112,7 @@ sub _json_encode {
 
 sub rest {
     my $self = shift;
-    my ( $method, $path, $json, $dump_responce ) = @_;
+    my ( $method, $path, $json, $dump_response ) = @_;
 
     unless ( $path =~ /\/$/ ) {
         $path = $path . '/';
@@ -130,7 +130,7 @@ sub rest {
     my $ua  = $self->{user_agent};
     my $res = $ua->request($req);
 
-    if ($dump_responce) {
+    if ($dump_response) {
         require Data::Dumper;
         return Data::Dumper::Dumper($res);
     }
