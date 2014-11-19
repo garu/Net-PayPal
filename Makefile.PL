@@ -1,6 +1,7 @@
 use 5.014002;
 use ExtUtils::MakeMaker;
-use Term::ANSIColor;
+
+my $has_color = -t STDOUT && eval 'use Term::ANSIColor; 1';
 
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
@@ -28,8 +29,7 @@ WriteMakefile(
 
 
 unless ($ENV{NET_PAYPAL_CLIENT_ID} && $ENV{NET_PAYPAL_SECRET}) {
-    print color("bold red");
-    print << 'USAGE';
+    my $usage = <<'USAGE';
 To run the tests you must set the following environmental variables:
 
     NET_PAYPAL_CLIENT_ID    - to the value of your client_id as provided by PayPal Developer Network
@@ -39,7 +39,7 @@ Not setting the above variables will cause all the tests to skip!
 
 USAGE
 
-    print color("reset");
+    print ($has_color ? color('bold red') . $usage . color('reset') : $usage);
 }
 
 
