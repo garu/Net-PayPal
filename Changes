@@ -1,8 +1,8 @@
-Revision history for Perl extension Net::PayPal.
+Revision history for Net::PayPal
 
-0.01  Fri Mar  8 13:21:13 2013
-	- original version; created by h2xs 1.23 with options
-		-A -X -n Net::PayPal
+0.02    2013-03-10 (SHERZODR)
+	- First implementation of the REST API
 
-0.02	Sunday, March 10, 2013
-	- First implementation of the REST api
+0.01    2013-03-08 (SHERZODR)
+	- original version; created by h2xs
+
