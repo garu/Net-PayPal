@@ -9,13 +9,13 @@ WriteMakefile(
     NAME         => 'Net::PayPal',
     VERSION_FROM => 'lib/Net/PayPal.pm',
     PREREQ_PM    => {
-        'Cache::FileCache' => undef,
-        'LWP::UserAgent'   => undef,
-        'JSON'             => undef,
-        'Crypt::SSLeay'    => undef,
-        'Test::More'       => undef,
-        'Crypt::CBC'       => undef,
-        'Crypt::Blowfish'  => undef
+        'Cache::FileCache' => 0,
+        'LWP::UserAgent'   => 0,
+        'JSON'             => 0,
+        'Crypt::SSLeay'    => 0,
+        'Test::More'       => 0,
+        'Crypt::CBC'       => 0,
+        'Crypt::Blowfish'  => 0,
     },
     (
         $] >= 5.005
