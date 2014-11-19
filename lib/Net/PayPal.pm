@@ -48,7 +48,7 @@ sub new {
     );
 
     unless ( $args{client_id} && $args{secret} ) {
-        croak " new() : client_id and secret are missing ";
+        croak ' new() : client_id and secret are missing ';
     }
 
     #
@@ -56,9 +56,9 @@ sub new {
     #
     my $cache = Cache::FileCache->new( { cache_root => File::Spec->tmpdir, namespace => 'NetPayPal' } );
 
-    my $cipher = Crypt::CBC->new( -key => $args{"secret"}, -cipher => 'Blowfish' );
+    my $cipher = Crypt::CBC->new( -key => $args{secret}, -cipher => 'Blowfish' );
 
-    if ( my $e_token = $cache->get( $args{"client_id"} ) ) {
+    if ( my $e_token = $cache->get( $args{client_id} ) ) {
         $args{access_token} = $cipher->decrypt($e_token);
     }
 
@@ -69,7 +69,7 @@ sub new {
 
         my $h = HTTP::Headers->new(
             'Content-Type'    => 'application/x-www-form-urlencoded',
-            Accept            => "application/json",
+            'Accept'          => 'application/json',
             'Accept-Language' => 'en_US'
         );
 
@@ -77,12 +77,12 @@ sub new {
 
         my $endpoint = $class->endpoint;
 
-        my $req = HTTP::Request->new( "POST", $endpoint . '/v1/oauth2/token', $h );
-        $req->content("grant_type=client_credentials");
+        my $req = HTTP::Request->new( 'POST', $endpoint . '/v1/oauth2/token', $h );
+        $req->content('grant_type=client_credentials');
 
         my $res = $ua->request($req);
         unless ( $res->is_success ) {
-            croak "Authorization failed : " . $res->status_line . ', ' . $res->content;
+            croak 'Authorization failed : ' . $res->status_line . ', ' . $res->content;
         }
 
         my $res_hash = _json_decode( $res->content );
@@ -90,7 +90,7 @@ sub new {
         $args{access_token} = $res_hash->{access_token};
         $args{app_id}       = $res_hash->{app_id};
 
-        $cache->set( $args{"client_id"}, $cipher->encrypt( $args{access_token} ), $res_hash->{expires_in} - 5 );
+        $cache->set( $args{client_id}, $cipher->encrypt( $args{access_token} ), $res_hash->{expires_in} - 5 );
     }
     return bless( \%args, $class );
 }
@@ -120,7 +120,7 @@ sub rest {
     }
 
     my $endpoint = $self->endpoint;
-    $endpoint = sprintf( " % s%s", $endpoint, $path );
+    $endpoint = sprintf( ' % s%s', $endpoint, $path );
     my $a_token = $self->{access_token};
     my $req = HTTP::Request->new( $method, $endpoint, [ 'Content-Type', 'application/json', 'Authorization', "Bearer $a_token" ] );
 
@@ -139,7 +139,7 @@ sub rest {
     unless ( $res->is_success ) {
         if ( my $content = $res->content ) {
             my $error = _json_decode( $res->content );
-            $self->error( sprintf( "%s: %s. See: %s", $error->{name}, $error->{message}, $error->{information_link} ) );
+            $self->error( sprintf( '%s: %s. See: %s', $error->{name}, $error->{message}, $error->{information_link} ) );
             return undef;
         }
         $self->error( $res->status_line );
@@ -174,14 +174,14 @@ sub cc_payment {
     my $request_hash = {
         intent => 'sale',
         payer  => {
-            payment_method      => "credit_card",
+            payment_method      => 'credit_card',
             funding_instruments => [ { credit_card => \%credit_card } ]
         },
         transactions => [
             {
                 amount => {
                     total    => $data->{amount},
-                    currency => $data->{currency} || "USD"
+                    currency => $data->{currency} || 'USD'
                 },
             }
         ]
@@ -191,7 +191,7 @@ sub cc_payment {
         $request_hash->{redirect_urls} = $data->{redirect_urls};
     }
 
-    return $self->rest( 'POST', "/v1/payments/payment", _json_encode($request_hash) );
+    return $self->rest( 'POST', '/v1/payments/payment', _json_encode($request_hash) );
 }
 
 sub stored_cc_payment {
@@ -199,20 +199,20 @@ sub stored_cc_payment {
     my ($data) = @_;
 
     unless ( $data->{id} ) {
-        croak "stored_cc_payment(): 'id' is missing";
+        croak 'stored_cc_payment(): "id" is missing';
     }
 
     my $request_hash = {
         intent => 'sale',
         payer  => {
-            payment_method      => "credit_card",
+            payment_method      => 'credit_card',
             funding_instruments => [ { credit_card_token => { credit_card_id => $data->{id} } } ]
         },
         transactions => [
             {
                 amount => {
                     total    => $data->{amount},
-                    currency => $data->{currency} || "USD"
+                    currency => $data->{currency} || 'USD'
                 },
             }
         ]
@@ -222,7 +222,7 @@ sub stored_cc_payment {
         $request_hash->{redirect_urls} = $data->{redirect_urls};
     }
 
-    return $self->rest( 'POST', "/v1/payments/payment", _json_encode($request_hash) );
+    return $self->rest( 'POST', '/v1/payments/payment', _json_encode($request_hash) );
 }
 
 sub get_payment {
@@ -230,16 +230,16 @@ sub get_payment {
     my ($id) = @_;
 
     unless ($id) {
-        croak "get_payment(): Invalid Payment ID";
+        croak 'get_payment(): Invalid Payment ID';
     }
 
-    return $self->rest( "GET", "/v1/payments/payment/$id" );
+    return $self->rest( 'GET', "/v1/payments/payment/$id" );
 }
 
 sub get_payments {
     my $self = shift;
 
-    return $self->rest( "GET", "/v1/payments/payment" );
+    return $self->rest( 'GET', '/v1/payments/payment' );
 }
 
 sub store_cc {
@@ -262,13 +262,13 @@ sub store_cc {
             $credit_card{$field} = $data->{$field};
         }
     }
-    return $self->rest( 'POST', "/v1/vault/credit-card", _json_encode( \%credit_card ) );
+    return $self->rest( 'POST', '/v1/vault/credit-card', _json_encode( \%credit_card ) );
 }
 
 sub get_cc {
     my $self = shift;
     my ($id) = @_;
-    return $self->rest( "GET", "/v1/vault/credit-card/$id" );
+    return $self->rest( 'GET', "/v1/vault/credit-card/$id" );
 }
 
 sub error {
