@@ -1,10 +1,3 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl Net-PayPal.t'
-
-#########################
-
-# change 'tests => 1' to 'tests => last_test_to_print';
-
 use strict;
 use warnings;
 use Data::Dumper;
@@ -17,13 +10,7 @@ else {
     plan(skip_all => "NET_PAYPAL_CLIENT_ID and NET_PAYPAL_SECRET env. variables must be set to run the tests");
 }
 
-
-BEGIN { use_ok('Net::PayPal') }
-
-#########################
-
-# Insert your test code below, the Test::More module is use()ed here so read
-# its man page ( perldoc Test::More ) for help writing this test script.
+use Net::PayPal;
 
 Net::PayPal->live(0);
 
@@ -80,7 +67,5 @@ ok($cc, $cc->{number});
 $payment = $p->stored_cc_payment({id => $cc->{id}, amount => '19.95'});
 
 ok($payment, "Payment was made on " . $payment->{create_time});
-
-
 
 exit(0);
