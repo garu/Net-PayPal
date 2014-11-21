@@ -1,7 +1,7 @@
 Net::PayPal
 ===========
 
-The PayPal's REST API provides Perl APIs to create, process and manage payments.
+Perl interface to PayPal's REST API for creating, processing and managing payments.
 
 ### Installation ###
 
@@ -34,44 +34,44 @@ Synopsis
 WARNING
 -------
 
-    Since as of this writing (March 10th, 2013) PayPal's REST api was still
-    in BETA state it's fair to consider Net::PayPal is an ALPHA software,
-    meaning any part of this module may change in subsequent releases. In
-    the meantime any suggestions and feedback and contributions are welcome.
+Since as of this writing (March 10th, 2013) PayPal's REST api was still
+in BETA state it's fair to consider Net::PayPal is an ALPHA software,
+meaning any part of this module may change in subsequent releases. In
+the meantime any suggestions and feedback and contributions are welcome.
 
-    Consult CHANGES file in the root folder of the distribution before
-    upgrading
+Consult CHANGES file in the root folder of the distribution before
+upgrading
 
 Description
 -----------
 
-    Net::PayPal implements PayPal's REST API. Visit
-    http://developer.paypal.com for further information.
+Net::PayPal implements PayPal's REST API. Visit
+http://developer.paypal.com for further information.
 
-    To start using Net::PayPal the following actions must be completed to
-    gain access to API endpoints:
+To start using Net::PayPal the following actions must be completed to
+gain access to API endpoints:
 
-    1   Sign up for a developer account by visiting
-        http://developer.paypal.com. It is free!
+1. Sign up for a developer account by visiting http://developer.paypal.com.
+It is free!
 
-    2   Under "Applications" tab (after signing into developer.paypal.com)
-        make note of secret and client_id. You will need these two
-        identifiers to interact with PayPal's API server
+2. Under "Applications" tab (after signing into developer.paypal.com)
+make note of secret and client_id. You will need these two
+identifiers to interact with PayPal's API server
 
-    3   Create Net::PayPal instance using secret and "client_id"
-        identifiers.
+3. Create Net::PayPal instance using secret and "client_id"
+identifiers.
 
 Author
 ------
 
-    Sherzod B. Ruzmetov <sherzodr@cpan.org>
+Sherzod B. Ruzmetov <sherzodr@cpan.org>
 
 COPYRIGHT AND LICENSE
 ---------------------
 
-    Copyright (C) 2013-2014 Sherzod B. Ruzmetov.
+Copyright (C) 2013-2014 Sherzod B. Ruzmetov.
 
-    This library is free software; you can redistribute it and/or modify it
-    under the same terms as Perl itself, either Perl version 5.14.2 or, at
-    your option, any later version of Perl 5 you may have available.
+This library is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself, either Perl version 5.14.2 or, at
+your option, any later version of Perl 5 you may have available.
 
