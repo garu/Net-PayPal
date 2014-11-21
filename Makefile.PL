@@ -16,6 +16,9 @@ WriteMakefile(
         'Test::More'       => 0,
         'Crypt::CBC'       => 0,
         'Crypt::Blowfish'  => 0,
+        'File::Spec'       => 0,
+        'HTTP::Headers'    => 0,
+        'HTTP::Request'    => 0,
     },
     (
         $] >= 5.005

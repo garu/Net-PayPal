@@ -5,7 +5,6 @@ package Net::PayPal;
 use 5.005;
 use strict;
 use JSON;
-use LWP;
 use Crypt::CBC;
 use Carp ("croak");
 use Cache::FileCache;
