@@ -9,6 +9,10 @@ use LWP;
 use Crypt::CBC;
 use Carp ("croak");
 use Cache::FileCache;
+use LWP::UserAgent;
+use File::Spec;
+use HTTP::Headers;
+use HTTP::Request;
 
 our $VERSION = '0.02';
 
@@ -51,9 +55,7 @@ sub new {
         croak ' new() : client_id and secret are missing ';
     }
 
-    #
     # checking if access_token is available from previous requests
-    #
     my $cache = Cache::FileCache->new( { cache_root => File::Spec->tmpdir, namespace => 'NetPayPal' } );
 
     my $cipher = Crypt::CBC->new( -key => $args{secret}, -cipher => 'Blowfish' );
