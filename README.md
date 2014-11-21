@@ -7,7 +7,7 @@ Perl interface to PayPal's REST API for creating, processing and managing paymen
 
     cpanm Net::PayPal
 
-Synopsis
+Usage
 --------
 
 ```perl
@@ -40,7 +40,7 @@ meaning any part of this module may change in subsequent releases. In
 the meantime any suggestions and feedback and contributions are welcome.
 
 Consult CHANGES file in the root folder of the distribution before
-upgrading
+upgrading.
 
 Description
 -----------
@@ -60,6 +60,15 @@ identifiers to interact with PayPal's API server
 
 3. Create Net::PayPal instance using secret and "client_id"
 identifiers.
+
+Methods and Extra Documentation
+-------------------------------
+
+Please refer to the
+[module's documentation online](https://metacpan.org/pod/Net::PayPal)
+or, after installing it, via the command
+
+    perldoc Net::PayPal
 
 Author
 ------
