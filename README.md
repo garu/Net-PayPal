@@ -11,24 +11,24 @@ Synopsis
 --------
 
 ```perl
-        use Net::PayPal;
+    use Net::PayPal;
 
-        my $paypal = Net::PayPal->new(
-            client_id => $client_id,
-            secret    => $client_secret
-        );
+    my $paypal = Net::PayPal->new(
+        client_id => $client_id,
+        secret    => $client_secret
+    );
 
-        my $payment = $paypal->cc_payment({
-            cc_number       => '4353185781082049',
-            cc_type         => 'visa',
-            cc_expire_month => 3,
-            cc_expire_year  => 2018,
-            amount          => 19.95,
-        }) or die $paypal->error;
+    my $payment = $paypal->cc_payment({
+        cc_number       => '4353185781082049',
+        cc_type         => 'visa',
+        cc_expire_month => 3,
+        cc_expire_year  => 2018,
+        amount          => 19.95,
+    }) or die $paypal->error;
 
-        if ($payment->{state} eq 'approved') {
-            say 'Thank you for your payment!';
-        }
+    if ($payment->{state} eq 'approved') {
+        say 'Thank you for your payment!';
+    }
 ```
 
 WARNING
