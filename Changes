@@ -1,5 +1,8 @@
 Revision history for Net::PayPal
 
+0.02_01
+    - fix API calls and Cache usage
+
 0.02    2013-03-10 (SHERZODR)
 	- First implementation of the REST API
 
