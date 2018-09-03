@@ -1,99 +1,147 @@
 package Net::PayPal;
-
-# $Id$
-
-use 5.005;
 use strict;
+use warnings;
+
 use JSON;
-use Crypt::CBC;
-use Carp ("croak");
-use Cache::FileCache;
+use Carp 'croak';
 use LWP::UserAgent;
-use File::Spec;
 use HTTP::Headers;
 use HTTP::Request;
 
-our $VERSION = '0.02';
+our $VERSION = '0.02_01';
 
-our $ENDPOINT_SANDBOX = "https://api.sandbox.paypal.com";
-our $ENDPOINT_LIVE    = "https://api.paypal.com";
-
-my $live = 0;
-my $last_error;
 my $json = JSON->new->allow_nonref;
 
-
 sub live {
-    my $class = shift;
-    my ($value) = @_;
-    return $live = $value;
+    my $self = shift;
+    return ! $self->sandbox( scalar @_ ? !$_[0] : () );
+}
+
+sub sandbox {
+    my $self = shift;
+    if (scalar @_) {
+        $self->{sandbox} = !! $_[0];
+    }
+    return $self->{sandbox};
 }
 
 sub endpoint {
-    my $class = shift;
-
-    if ( $live == 1 ) {
-        return $ENDPOINT_LIVE;
-    }
-    return $ENDPOINT_SANDBOX;
+    my ($self) = @_;
+    $self->sandbox ? 'https://api.sandbox.paypal.com'
+                   : 'https://api.paypal.com';
 }
 
 sub new {
     my $class = shift;
+    my $args = (ref $_[0] ? $_[0] : {@_});
 
-    my %args = (
-        client_id    => $_[0],
-        secret       => $_[1],
-        user_agent   => LWP::UserAgent->new,
-        app_id       => undef,
-        access_token => undef,
-        @_
+    croak 'please provide a client_id and a secret'
+        unless $args->{client_id} and $args->{secret};
+
+    croak 'passing both sandbox and live attributes is not allowed'
+        if exists $args->{sandbox} and exists $args->{live};
+
+    croak '"cache_transform" hashref must have "in" and "out" subrefs'
+        if exists $args->{cache_transform}
+          && (ref $args->{cache_transform} ne 'HASH'
+               || !exists $args->{cache_transform}{in}
+               || !exists $args->{cache_transform}{out}
+               || ref $args->{cache_transform}{in}  ne 'CODE'
+               || ref $args->{cache_transform}{out} ne 'CODE'
+           );
+
+    return bless {
+        client_id        => $args->{client_id},
+        secret           => $args->{secret},
+        user_agent       => $args->{user_agent} || _create_ua(),
+        cache_transform  => $args->{cache_transform},
+        cache            => $args->{cache}
+                         || _create_cache($args->{cache_dir}),
+        sandbox          => (  exists $args->{sandbox} ?  $args->{sandbox}
+                             : exists $args->{live}    ? !$args->{live}
+                             : 1
+                         ),
+    }, $class;
+}
+
+sub access_token {
+    my $self = shift;
+
+    if (@_) {
+        my ($token, $expiration) = @_;
+        $self->_set_cached_access_token($token, $expiration || () );
+        return $token;
+    }
+    elsif ( my $token = $self->_get_cached_access_token ) {
+        return $token;
+    }
+    else {
+        my ($token ,$expiration) = $self->_get_access_token_from_paypal;
+        $self->_set_cached_access_token($token, $expiration);
+        return $token;
+    }
+}
+
+
+sub _get_access_token_from_paypal {
+    my ($self) = @_;
+
+    my $header = HTTP::Headers->new(
+        'Content-Type'    => 'application/x-www-form-urlencoded',
+        'Accept'          => 'application/json',
+        'Accept-Language' => 'en_US'
     );
 
-    unless ( $args{client_id} && $args{secret} ) {
-        croak ' new() : client_id and secret are missing ';
-    }
+    $header->authorization_basic( $self->{client_id}, $self->{secret} );
 
-    # checking if access_token is available from previous requests
-    my $cache = Cache::FileCache->new( { cache_root => File::Spec->tmpdir, namespace => 'NetPayPal' } );
+    my $req = HTTP::Request->new(
+        'POST' => $self->endpoint . '/v1/oauth2/token',
+        $header,
+        'grant_type=client_credentials'
+    );
 
-    my $cipher = Crypt::CBC->new( -key => $args{secret}, -cipher => 'Blowfish' );
+    my $res = $self->{user_agent}->request($req);
 
-    if ( my $e_token = $cache->get( $args{client_id} ) ) {
-        $args{access_token} = $cipher->decrypt($e_token);
-    }
+    croak 'Authorization failed: ' . $res->status_line . ', ' . $res->content
+        unless $res->is_success;
 
-    else {
+    my $res_hash = _json_decode( $res->content );
 
-        # if access_token cannot be found in the cache we need to authenticate ourselves to get one
-        my $ua = $args{user_agent};
+    return ($res_hash->{access_token}, $res_hash->{expires_in});
+}
 
-        my $h = HTTP::Headers->new(
-            'Content-Type'    => 'application/x-www-form-urlencoded',
-            'Accept'          => 'application/json',
-            'Accept-Language' => 'en_US'
-        );
+sub _set_cached_access_token {
+    my ($self, $token, $expiration) = @_;
 
-        $h->authorization_basic( $args{client_id}, $args{secret} );
+    $token = $self->{cache_transform}{in}->($token)
+        if $self->{cache_transform};
 
-        my $endpoint = $class->endpoint;
+    $self->{cache}->set( $self->{client_id}, $token, $expiration );
+}
 
-        my $req = HTTP::Request->new( 'POST', $endpoint . '/v1/oauth2/token', $h );
-        $req->content('grant_type=client_credentials');
+sub _get_cached_access_token {
+    my ($self) = @_;
 
-        my $res = $ua->request($req);
-        unless ( $res->is_success ) {
-            croak 'Authorization failed : ' . $res->status_line . ', ' . $res->content;
-        }
+    my $token = $self->{cache}->get( $self->{client_id} );
 
-        my $res_hash = _json_decode( $res->content );
+    $token = $self->{cache_transform}{out}->($token)
+        if $self->{cache_transform};
 
-        $args{access_token} = $res_hash->{access_token};
-        $args{app_id}       = $res_hash->{app_id};
+    return $token;
+}
 
-        $cache->set( $args{client_id}, $cipher->encrypt( $args{access_token} ), $res_hash->{expires_in} - 5 );
-    }
-    return bless( \%args, $class );
+sub _create_cache {
+    my ($cache_root) = @_;
+    require Cache::FileCache;
+    return Cache::FileCache->new({
+        namespace  => 'NetPayPal',
+        ($cache_root ? (cache_root => $cache_root) : ()),
+    });
+}
+
+sub _create_ua {
+    require LWP::UserAgent;
+    return LWP::UserAgent->new( agent => "Net-PayPal/$VERSION" );
 }
 
 sub _json_decode {
@@ -113,40 +161,46 @@ sub _json_encode {
 }
 
 sub rest {
-    my $self = shift;
-    my ( $method, $path, $json, $dump_response ) = @_;
+    my ($self, $method, $path, $json) = @_;
 
-    unless ( $path =~ /\/$/ ) {
-        $path = $path . '/';
-    }
+    my $target_uri = $self->endpoint . $path;
+    my $token = $self->access_token;
 
-    my $endpoint = $self->endpoint;
-    $endpoint = sprintf( ' % s%s', $endpoint, $path );
-    my $a_token = $self->{access_token};
-    my $req = HTTP::Request->new( $method, $endpoint, [ 'Content-Type', 'application/json', 'Authorization', "Bearer $a_token" ] );
+    my $req = HTTP::Request->new(
+        $method => $target_uri,
+        [
+            'Content-Type'  => 'application/json',
+            'Authorization' => "Bearer $token"
+        ]
+    );
 
     if ($json) {
+        $json = _json_encode($json) if ref $json;
         $req->content($json);
     }
 
-    my $ua  = $self->{user_agent};
-    my $res = $ua->request($req);
+    my $res = $self->{user_agent}->request($req);
 
-    if ($dump_response) {
-        require Data::Dumper;
-        return Data::Dumper::Dumper($res);
+    if ($res->is_success) {
+        return _json_decode( $res->content );
     }
-
-    unless ( $res->is_success ) {
+    else {
         if ( my $content = $res->content ) {
             my $error = _json_decode( $res->content );
-            $self->error( sprintf( '%s: %s. See: %s', $error->{name}, $error->{message}, $error->{information_link} ) );
-            return undef;
+
+            $self->error( sprintf('%s: %s. (field %s: %s) See %s',
+                $error->{name},
+                $error->{message},
+                $error->{details}{field},
+                $error->{details}{issue},
+                $error->{details}{information_link}
+            ));
         }
-        $self->error( $res->status_line );
+        else {
+            $self->error( $res->status_line );
+        }
         return undef;
     }
-    return _json_decode( $res->content );
 }
 
 sub cc_payment {
@@ -273,14 +327,9 @@ sub get_cc {
 }
 
 sub error {
-    my $self = shift;
-    my ($new_message) = @_;
-
-    unless ($new_message) {
-        return $last_error;
-    }
-
-    $last_error = $new_message;
+    my ($self, $message) = @_;
+    return $self->{last_error} unless $message;
+    return $self->{last_error} = $message
 }
 
 1;
@@ -293,7 +342,11 @@ Net::PayPal - Perl extension for PayPal's REST API server
 =head1 SYNOPSIS
 
     use Net::PayPal;
-    my $p = Net::PayPal->new($client_id, $client_secret);
+
+    my $p = Net::PayPal->new(
+        client_id => $client_id,
+        secret    => $secret,
+    );
 
     my $payment = $p->cc_payment({
         cc_number       => '4353185781082049',
@@ -314,66 +367,105 @@ Net::PayPal - Perl extension for PayPal's REST API server
 
 =head1 WARNING
 
-Since as of this writing (March 10th, 2013) PayPal's REST api was still in B<BETA> state it's fair to consider Net::PayPal is an B<ALPHA> software, meaning any part
-of this module may change in subsequent releases. In the meantime any suggestions and feedback and contributions are welcome.
+PayPal's REST API is still (as of 11/2014) under development, albeit being
+the recommended way for new apps.
 
-Consult CHANGES file in the root folder of the distribution before upgrading
+As such, is it fair to consider Net::PayPal B<BETA> software, meaning any
+parts of this module may change in future releases. Suggestions, feedback
+and contributions are welcome.
+
+Please consult the C<Changes> file in the root of the distribution before
+upgrading.
 
 =head1 DESCRIPTION
 
-Net::PayPal implements PayPal's REST API. Visit http://developer.paypal.com for further information.
+Net::PayPal implements PayPal's REST API. Visit L<http://developer.paypal.com>
+for further information.
 
 To start using Net::PayPal the following actions must be completed to gain access to API endpoints:
 
 =over 4
 
-=item 1
+=item 1 L<Sign up|http://developer.paypal.com> for a (free) developer account.
 
-Sign up for a developer account by visiting http://developer.paypal.com. It is free!
-
-=item 2
-
-Under "Applications" tab (after signing into developer.paypal.com) make note of C<secret> and C<client_id>. You will need these two identifiers
+=item 2 Under "Applications" tab (after signing into developer.paypal.com) make note of C<secret> and C<client_id>. You will need these two identifiers
 to interact with PayPal's API server
 
-=item 3
-
-Create Net::PayPal instance using C<secret> and C<client_id> identifiers.
+=item 3 Create Net::PayPal instance using C<secret> and C<client_id> identifiers.
 
 =back
 
-=head2 SUPPORTED APIs
-
-As of this writing the following APIs are implemented. As PayPal's REST Api evolves this module will evolve together
-
-=over 4
-
-=item POST /v1/payments/payment
-
-=item GET /v1/payments/payment/{payment_id}
-
-=item POST /v1/vault/credit-card
-
-=item GET /v1/vault/credit-card/{credit_card_id}
-
-=back
-
-See L<rest()> method for everything else
-
-=head2 METHODS
+=head1 METHODS
 
 Following methods are available
 
-=head3 new($client_id, $secret);
+=head2 new( %ARGS );
 
-Creates and returns an instance of Net::PayPal class. If it's the first time you call this method within 8 hour period it will attempt to authenticate
-the instance by submitting your credentials to paypal's /v1/oauth/token API. The access token is then cached for 8 hour period in your system's temp folder.
+    my $paypal = Net::Paypal->new(
+        client_id => '1234',
+        secret    => 'abcd',
+    );
 
-C<access_token> is a very sensitive data. For this reason Net::PayPal encrypts this data using Blowfish algorithm, using your C<secret> as key. As long as
-you can keep your C<secret> identifier in secret your access token is reasonably safe!
+Creates and returns an instance of Net::PayPal class.
 
-Caching is very useful. Without cahing each API call in separate processes must attempt to authenticate the API, thus slowing down each API call.
-By making use of caching technique a separate token is stored for each client_id in the temp folder.
+Accepts the following arguments in a hash or hashref:
+
+=over 4
+
+=item * client_id - The client id for your app, as provided by PayPal.
+B<Mandatory>.
+
+=item * secret - The secret for your app, as provided by PayPal. B<Mandatory>.
+
+=item * sandbox - Set the target url 
+
+=back
+
+=head3 Safekeeping your cached access token
+
+PayPal's REST API forces you to provide an access token on every query. That
+token comes with a (sometimes very short) expiration date, rendering requests
+very expensive - imagine having to ask for a new acces token every time you
+make a request to the API!
+
+To prevent that while also allowing different processes to share the same
+access token, we store it in cache, using L<Cache::Cache>'s FileCache engine.
+
+Problem is, caching to the filesystem defaults to a I<public> directory,
+which might be readable by others. While that's kind of the point, it
+is worth noticing that anyone whith read access to the temporary directory
+in your filesystem will be able to read it (and perform operations on the
+REST API on your behalf!).
+
+There are several ways to make this safe:
+
+=item * use the C<cache_dir> argument to save the cache file in a protected
+directory of your choosing - probably the same place where you store your
+client_id and secret, which are even more sensitive.
+
+=item * use the C<cache> argument to set a different, safer, cache of your
+choosing.
+
+=item * use the C<cache_transform> argument to encrypt/decrypt your access
+key. The example below encrypts your key using the Blowfish cipher, with
+the paypal secret as key:
+
+    use Net::PayPal;
+    use Crypt::CBC;
+
+    my ($client_id, $secret) = fetch_my_paypal_data();
+
+    my $cipher = Crypt::CBC->new( -key => $secret, -cipher => 'Blowfish' );
+
+    my $paypal = Net::PayPal->new({
+        client_id       => $client_id,
+        secret          => $secret,
+        cache_transform => {
+            in  => sub { $cipher->encrypt(@_) },
+            out => sub { $cipher->decrypt(@_) },
+        }
+
+=back
 
 =head3 cc_payment(\%data)
 

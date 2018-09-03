@@ -9,7 +9,7 @@ WriteMakefile(
     NAME         => 'Net::PayPal',
     VERSION_FROM => 'lib/Net/PayPal.pm',
     PREREQ_PM    => {
-        'Cache::FileCache' => 0,
+        'Cache::Cache'     => 0,
         'LWP::UserAgent'   => 0,
         'JSON'             => 0,
         'Crypt::SSLeay'    => 0,
