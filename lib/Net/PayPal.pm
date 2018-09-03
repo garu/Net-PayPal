@@ -187,14 +187,7 @@ sub rest {
     else {
         if ( my $content = $res->content ) {
             my $error = _json_decode( $res->content );
-
-            $self->error( sprintf('%s: %s. (field %s: %s) See %s',
-                $error->{name},
-                $error->{message},
-                $error->{details}{field},
-                $error->{details}{issue},
-                $error->{details}{information_link}
-            ));
+            $self->error( $res->content );
         }
         else {
             $self->error( $res->status_line );
